@@ -3,25 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D MPU6050 Visualization</title>
+    <title>MPU6050 Web BLE Visualization</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { display: block; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        #connectButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #connectButton:hover {
+            background-color: #0056b3;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body>
-    <button id="connectButton" style="position: absolute; z-index: 1;">Connect to BLE</button>
+    <h1>MPU6050 BLE 3D Visualization</h1>
+    <button id="connectButton">Connect to BLE</button>
+    <div id="status"></div>
+    <div id="container"></div>
+
     <script>
         let scene, camera, renderer, cube;
 
-        // Initialize Three.js
+        // Initialize Three.js 3D visualization
         function init3D() {
+            const container = document.getElementById('container');
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
+            container.appendChild(renderer.domElement);
 
             // Create a 3D cube
             const geometry = new THREE.BoxGeometry();
@@ -34,45 +63,66 @@
             animate();
         }
 
-        // Animation loop
+        // Animation loop for the 3D visualization
         function animate() {
             requestAnimationFrame(animate);
             renderer.render(scene, camera);
         }
 
-        // Connect to BLE
+        // Connect to BLE and receive MPU6050 data
         async function connectBLE() {
             try {
+                document.getElementById('status').innerText = "Requesting BLE device...";
+                console.log("Requesting BLE device...");
+
+                // Request the BLE device
                 const device = await navigator.bluetooth.requestDevice({
                     acceptAllDevices: true,
                     optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e'] // UART Service UUID
                 });
-                const server = await device.gatt.connect();
-                const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
-                const characteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
 
+                document.getElementById('status').innerText = `Device selected: ${device.name}`;
+                console.log("Device selected:", device.name);
+
+                // Connect to the GATT server
+                const server = await device.gatt.connect();
+                console.log("Connected to GATT server");
+
+                // Get the UART Service
+                const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
+                console.log("UART Service found");
+
+                // Get the RX Characteristic
+                const characteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+                console.log("RX Characteristic found");
+
+                // Start receiving notifications
                 characteristic.startNotifications();
+                console.log("Notifications started");
+                document.getElementById('status').innerText = "Connected! Receiving data...";
+
                 characteristic.addEventListener('characteristicvaluechanged', (event) => {
                     const value = new TextDecoder().decode(event.target.value);
-                    const [x, y, z] = value.split(',').map(parseFloat);
+                    console.log("Data received:", value);
 
-                    // Rotate the cube based on accelerometer data
-                    cube.rotation.x = x / 10; // Scale down for smoother rotation
-                    cube.rotation.y = y / 10;
-                    cube.rotation.z = z / 10;
+                    // Parse the received data (accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z)
+                    const [accelX, accelY, accelZ, gyroX, gyroY, gyroZ] = value.split(',').map(parseFloat);
+
+                    // Use accelerometer data to rotate the 3D cube
+                    cube.rotation.x = accelX / 10; // Scale down for smoother rotation
+                    cube.rotation.y = accelY / 10;
+                    cube.rotation.z = accelZ / 10;
                 });
-
-                console.log("Connected to BLE device!");
             } catch (error) {
                 console.error("Error connecting to BLE device:", error);
+                document.getElementById('status').innerText = "Error connecting to BLE device. See console for details.";
             }
         }
 
-        // Initialize 3D and set up BLE connection
-        document.getElementById('connectButton').addEventListener('click', () => {
-            connectBLE();
-        });
+        // Add event listener to connect button
+        document.getElementById('connectButton').addEventListener('click', connectBLE);
 
+        // Initialize the 3D visualization
         init3D();
     </script>
 </body>
