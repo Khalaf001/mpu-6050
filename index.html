@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MPU6050 Web BLE Visualization</title>
+    <title>MPU6050 BLE 3D Visualization</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
@@ -35,7 +35,7 @@
     </style>
 </head>
 <body>
-    <h1>MPU6050 BLE 3D Visualization</h1>
+    <h1>MPU6050 BLE 3D Cube Visualization</h1>
     <button id="connectButton">Connect to BLE</button>
     <div id="status"></div>
     <div id="container"></div>
@@ -56,7 +56,7 @@
             container.appendChild(renderer.domElement);
 
             // Create a 3D cube
-            const geometry = new THREE.BoxGeometry();
+            const geometry = new THREE.BoxGeometry(1, 1, 1); // Ensures the object is a cube
             const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             cube = new THREE.Mesh(geometry, material);
             scene.add(cube);
@@ -81,7 +81,7 @@
                 // Request the BLE device
                 const device = await navigator.bluetooth.requestDevice({
                     acceptAllDevices: true,
-                    optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e'] // UART Service UUID
+                    optionalServices: [serviceUUID] // UART Service UUID
                 });
 
                 document.getElementById('status').innerText = `Device selected: ${device.name}`;
@@ -92,11 +92,11 @@
                 console.log("Connected to GATT server");
 
                 // Get the UART Service
-                const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
+                const service = await server.getPrimaryService(serviceUUID);
                 console.log("UART Service found");
 
                 // Get the RX Characteristic
-                const characteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+                const characteristic = await service.getCharacteristic(characteristicUUID);
                 console.log("RX Characteristic found");
 
                 // Start receiving notifications
