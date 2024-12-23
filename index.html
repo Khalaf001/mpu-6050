@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D MPU6050 Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <button id="connectButton" style="position: absolute; z-index: 1;">Connect to BLE</button>
+    <script>
+        let scene, camera, renderer, cube;
+
+        // Initialize Three.js
+        function init3D() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Create a 3D cube
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            cube = new THREE.Mesh(geometry, material);
+            scene.add(cube);
+
+            camera.position.z = 5;
+
+            animate();
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        // Connect to BLE
+        async function connectBLE() {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e'] // UART Service UUID
+                });
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
+                const characteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+
+                characteristic.startNotifications();
+                characteristic.addEventListener('characteristicvaluechanged', (event) => {
+                    const value = new TextDecoder().decode(event.target.value);
+                    const [x, y, z] = value.split(',').map(parseFloat);
+
+                    // Rotate the cube based on accelerometer data
+                    cube.rotation.x = x / 10; // Scale down for smoother rotation
+                    cube.rotation.y = y / 10;
+                    cube.rotation.z = z / 10;
+                });
+
+                console.log("Connected to BLE device!");
+            } catch (error) {
+                console.error("Error connecting to BLE device:", error);
+            }
+        }
+
+        // Initialize 3D and set up BLE connection
+        document.getElementById('connectButton').addEventListener('click', () => {
+            connectBLE();
+        });
+
+        init3D();
+    </script>
+</body>
+</html>
