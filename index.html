@@ -35,7 +35,7 @@
     </style>
 </head>
 <body>
-    <h1>MPU6050 BLE 3D Cube Visualization test</h1>
+    <h1>MPU6050 BLE 3D Cube Visualization</h1>
     <button id="connectButton">Connect to BLE</button>
     <div id="status"></div>
     <div id="container"></div>
@@ -55,13 +55,20 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             container.appendChild(renderer.domElement);
 
-            // Create a 3D cube
+            // Create a 3D cube with different colors on each face
             const geometry = new THREE.BoxGeometry(1, 1, 1); // Ensures the object is a cube
-            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            cube = new THREE.Mesh(geometry, material);
+            const materials = [
+                new THREE.MeshBasicMaterial({ color: 0xff0000 }), // Red
+                new THREE.MeshBasicMaterial({ color: 0x00ff00 }), // Green
+                new THREE.MeshBasicMaterial({ color: 0x0000ff }), // Blue
+                new THREE.MeshBasicMaterial({ color: 0xffff00 }), // Yellow
+                new THREE.MeshBasicMaterial({ color: 0xff00ff }), // Magenta
+                new THREE.MeshBasicMaterial({ color: 0x00ffff })  // Cyan
+            ];
+            cube = new THREE.Mesh(geometry, materials);
             scene.add(cube);
 
-            camera.position.z = 5;
+            camera.position.z = 3;
 
             animate();
         }
@@ -72,7 +79,7 @@
             renderer.render(scene, camera);
         }
 
-        // Connect to BLE and receive MPU6050 data
+        // Connect to BLE and receive MPU6050 roll and pitch data
         async function connectBLE() {
             try {
                 document.getElementById('status').innerText = "Requesting BLE device...";
@@ -108,13 +115,12 @@
                     const value = new TextDecoder().decode(event.target.value);
                     console.log("Data received:", value);
 
-                    // Parse the received data (accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z)
-                    const [accelX, accelY, accelZ, gyroX, gyroY, gyroZ] = value.split(',').map(parseFloat);
+                    // Parse the received data (roll, pitch)
+                    const [roll, pitch] = value.split(',').map(parseFloat);
 
-                    // Use accelerometer data to rotate the 3D cube
-                    cube.rotation.x = accelX / 10; // Scale down for smoother rotation
-                    cube.rotation.y = accelY / 10;
-                    cube.rotation.z = accelZ / 10;
+                    // Use roll and pitch data to rotate the 3D cube
+                    cube.rotation.x = pitch * (Math.PI / 180); // Convert degrees to radians
+                    cube.rotation.y = roll * (Math.PI / 180);
                 });
             } catch (error) {
                 console.error("Error connecting to BLE device:", error);
